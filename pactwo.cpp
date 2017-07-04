@@ -18,7 +18,7 @@ enum MYKEYS
 char MAPA[26][26] =
 {
     "1111111111111111111111111",
-    "1322222222222222222222231",
+    "1222222222222222222222221",
     "1211112111212121112111121",
     "1222212122212122212122221",
     "1211212121112111212121121",
@@ -40,10 +40,9 @@ char MAPA[26][26] =
     "1222221112212122111222221",
     "1211122222222222222211121",
     "1211111111112111111111121",
-    "1322222222222222222222231",
+    "1222222222222222222222221",
     "1111111111111111111111111",
 };
-
 
 ALLEGRO_DISPLAY *display = NULL;
 ALLEGRO_EVENT_QUEUE *event_queue = NULL;
@@ -67,9 +66,13 @@ int bug1y = 1*q;
 int bug2x = 1*q;
 int bug2y = 23*q;
 int bug3x = 23*q;
-int bug3y = 1*q;
+int bug3y = 23*q;
 int bug4x = 23*q;
-int bug4y = 23*q;
+int bug4y = 1*q;
+int dirbug1;
+int dirbug2;
+int dirbug3;
+int dirbug4;
 
 
 
@@ -90,7 +93,7 @@ int inicializa() {
         return 0;
     }
 
-    timer = al_create_timer(1.0 / FPS);
+    timer = al_create_timer(1.2 / FPS);
     if(!timer)
     {
         cout << "Falha ao inicializar o temporizador" << endl;
@@ -145,7 +148,6 @@ int inicializa() {
                 al_draw_bitmap(balao, balaox, balaoy,0);
             }
         }
-
     bug1 = al_load_bitmap("bug.tga");
     bug2 = al_load_bitmap("bug.tga");
     bug3 = al_load_bitmap("bug.tga");
@@ -182,55 +184,96 @@ int inicializa() {
 }
 
 int gera_num(){
-      int aleatorio = ( rand() % 5 );
+      int aleatorio = ( rand() % 4 );
       std::cout << "Numero Aleatorio = " << aleatorio << std::endl;
       return aleatorio;
 }
-void movimenta_bug ( int &bugx, int &bugy){
-    int bugi = bugx/q;
-    int bugj = bugy/q;
-    switch(gera_num()){
+
+bool possivel (int const &bugi, int const &bugj, int const &dir ){
+    switch(dir){
+        case 0:
+            if ( MAPA[bugi-1][bugj] == '1')
+            return false;
+            break;
         case 1:
-        if (MAPA[bugi-1][bugj] == '1')
-            movimenta_bug(bugx,bugy);
-        else{
-            if(MAPA[bugi][bugj] == '0')
+            if ( MAPA[bugi][bugj+1] == '1')
+            return false;
+            break;
+        case 2:
+            if( MAPA[bugi+1][bugj] == '1')
+            return false;
+            break;
+        case 3:
+            if ( MAPA[bugi][bugj-1] == '1')
+            return false;
+            break;
+    }
+    return true;
+}
+
+int possibilidades (int const &bugi, int const &bugj){
+    int possibilidade=4;
+    if ( MAPA[bugi-1][bugj] == '1')
+        possibilidade--;
+    if ( MAPA[bugi][bugj+1] == '1')
+        possibilidade--;
+    if( MAPA[bugi+1][bugj] == '1')
+        possibilidade--;
+    if ( MAPA[bugi][bugj-1] == '1')
+        possibilidade--;
+    cout << "possibilidades:" << possibilidade << endl;
+    return possibilidade;
+}
+bool movimenta_bug (int &bugy, int &bugx, int &dir){
+    int bugi = bugy/q;
+    int bugj = bugx/q;
+    cout << "direcao: "<<dir << endl;
+    if (possibilidades(bugi,bugj) > 2 || !possivel(bugi,bugj,dir)){
+        do{
+            for(int muda = dir; dir == muda;)
+                dir = gera_num();
+            cout << "mudou dir para:"  << dir << endl;
+        }while(!possivel(bugi,bugj,dir));
+    }
+
+    switch(dir){
+        case 0:
             bugi--;
-            bugx = bugi*q;
-        }
+            bugy = bugi*q;
+            if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
+                cout << "Game Over!!!" << endl;
+                return true;
+            }
+        break;
+
+        case 1:
+            bugj++;
+            bugx = bugj*q;
+            if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
+                cout << "Game Over!!!" << endl;
+                return true;
+            }
         break;
 
         case 2:
-        if (MAPA[bugi][bugj+1] == '1')
-            movimenta_bug(bugx,bugy);
-        else{
-            if(MAPA[bugi][bugj] == '0')
-            bugj++;
-            bugy = bugj*q;
-        }
+            bugi++;
+            bugy = bugi*q;
+            if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
+                cout << "Game Over!!!" << endl;
+                return true;
+            }
         break;
 
         case 3:
-        if (MAPA[bugi+1][bugj] == '1')
-            movimenta_bug(bugx,bugy);
-        else{
-            if(MAPA[bugi][bugj] == '0')
-            bugi++;
-            bugx = bugi*q;
-        }
-        break;
-
-        case 4:
-        if (MAPA[bugj][bugi-1] == '1')
-            movimenta_bug(bugx,bugy);
-        else{
-            if(MAPA[bugi][bugj] == '0')
             bugj--;
-            bugy = bugj*q;
-        }
+            bugx = bugj*q;
+            if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
+                cout << "Game Over!!!" << endl;
+                return true;
+            }
         break;
     }
-
+    return false;
 }
 
 int main(int argc, char **argv)
@@ -308,11 +351,10 @@ int main(int argc, char **argv)
                     break;
             	}
             }
-
-            movimenta_bug(bug1x,bug1y);
-            movimenta_bug(bug2x,bug2y);
-            movimenta_bug(bug3x,bug3y);
-            movimenta_bug(bug4x,bug4y);
+            sair=movimenta_bug(bug1y,bug1x,dirbug1);
+            sair=movimenta_bug(bug2y,bug2x,dirbug2);
+            sair=movimenta_bug(bug3y,bug3x,dirbug3);
+            sair=movimenta_bug(bug4y,bug4x,dirbug4);
 
             redraw = true;
         }
