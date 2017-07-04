@@ -54,6 +54,7 @@ int i = 14, j = 12; //posição inicial do Pacman na matriz
 int q = 20; //tamanho de cada célula no mapa
 int posy = i*q;
 int posx = j*q;
+int dirpac = -1;
 int balaoy = q;
 int balaox = q;
 ALLEGRO_BITMAP *balao = NULL;
@@ -276,6 +277,69 @@ bool movimenta_bug (int &bugy, int &bugx, int &dir){
     return false;
 }
 
+void movimenta_pacman (){
+    static int dir = -1;
+    if ( possivel(i,j,dirpac))
+        dir=dirpac;
+    switch (dir){
+        case 0:
+            if(MAPA[i-1][j] != '1')
+            {
+                 pacman = al_load_bitmap("pacmanU.tga");
+            	if(MAPA[i-1][j]=='2'){
+            		points++;
+            		cout << "Mais um ponto!!!" << endl;
+            		MAPA[i-1][j]='0';
+            	}
+                i--;
+                posy = i*q;
+            }
+        break;
+
+        case 1:
+            if(MAPA[i][j+1] != '1')
+            {
+                pacman = al_load_bitmap("pacmanR.tga");
+            	if(MAPA[i][j+1]=='2'){
+            		points++;
+            		cout << "Mais um ponto!!!" << endl;
+            		MAPA[i][j+1]='0';
+            	}
+                j++;
+                posx = j*q;
+            }
+        break;
+
+        case 2:
+            if(MAPA[i+1][j] != '1')
+            {
+                 pacman = al_load_bitmap("pacmanD.tga");
+            	if(MAPA[i+1][j] =='2'){
+            		points++;
+            		cout << "Mais um ponto!!!" << endl;
+            		MAPA[i+1][j]='0';
+            	}
+                i++;
+                posy = i*q;
+            }
+        break;
+
+        case 3:
+            if(MAPA[i][j-1] != '1')
+            {
+                 pacman = al_load_bitmap("pacmanL.tga");
+            	if(MAPA[i][j-1]=='2'){
+            		points++;
+            		cout << "Mais um ponto!!!" << endl;
+            		MAPA[i][j-1]='0';
+            	}
+                j--;
+                posx = j*q;
+            }
+        break;
+    }
+}
+
 int main(int argc, char **argv)
 {
     if(!inicializa()) return -1;
@@ -287,15 +351,9 @@ int main(int argc, char **argv)
 
         if(ev.type == ALLEGRO_EVENT_TIMER)
         {
-            if(key[KEY_UP] && MAPA[i-1][j] != '1')
+            if(key[KEY_UP])
             {
-            	if(MAPA[i-1][j]=='2'){
-            		points++;
-            		cout << "Mais um ponto!!!" << endl;
-            		MAPA[i-1][j]='0';
-            	}
-                i--;
-                posy = i*q;
+            	dirpac = 0;
                 if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
                     cout << "Game Over!!!" << endl;
                     sair = true;
@@ -303,16 +361,9 @@ int main(int argc, char **argv)
             	}
             }
 
-            if(key[KEY_DOWN] && MAPA[i+1][j] != '1')
+            if(key[KEY_DOWN])
             {
-            	if(MAPA[i+1][j]=='2'){
-            		points++;
-            		cout << "Mais um ponto!!!" << endl;
-            		MAPA[i+1][j]='0';
-            	}
-
-                i++;
-                posy = i*q;
+            	dirpac = 2;
                  if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
                     cout << "Game Over!!!" << endl;
                     sair = true;
@@ -320,15 +371,9 @@ int main(int argc, char **argv)
             	}
             }
 
-            if(key[KEY_LEFT] && MAPA[i][j-1] != '1')
+            if(key[KEY_LEFT])
             {
-            	if(MAPA[i][j-1]=='2'){
-            		points++;
-            		cout << "Mais um ponto!!!" << endl;
-            		MAPA[i][j-1]='0';
-            	}
-                j--;
-                posx = j*q;
+            	dirpac = 3;
                  if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
                     cout << "Game Over!!!" << endl;
                     sair = true;
@@ -336,21 +381,16 @@ int main(int argc, char **argv)
             	}
             }
 
-            if(key[KEY_RIGHT] && MAPA[i][j+1] != '1')
+            if(key[KEY_RIGHT])
             {
-            	if(MAPA[i][j+1]=='2'){
-            		points++;
-            		cout << "Mais um ponto!!!" << endl;
-            		MAPA[i][j+1]='0';
-            	}
-                j++;
-                posx = j*q;
+            	dirpac = 1;
                 if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
                     cout << "Game Over!!!" << endl;
                     sair = true;
                     break;
             	}
             }
+            movimenta_pacman();
             sair=movimenta_bug(bug1y,bug1x,dirbug1);
             sair=movimenta_bug(bug2y,bug2x,dirbug2);
             sair=movimenta_bug(bug3y,bug3x,dirbug3);
@@ -371,7 +411,6 @@ int main(int argc, char **argv)
                 key[KEY_DOWN] = false;
                 key[KEY_LEFT] = false;
                 key[KEY_RIGHT] = false;
-                pacman = al_load_bitmap("pacmanU.tga");
                 break;
 
             case ALLEGRO_KEY_DOWN:
@@ -379,7 +418,6 @@ int main(int argc, char **argv)
                 key[KEY_DOWN] = true;
                 key[KEY_LEFT] = false;
                 key[KEY_RIGHT] = false;
-                pacman = al_load_bitmap("pacmanD.tga");
                 break;
 
             case ALLEGRO_KEY_LEFT:
@@ -387,7 +425,6 @@ int main(int argc, char **argv)
                 key[KEY_DOWN] = false;
                 key[KEY_LEFT] = true;
                 key[KEY_RIGHT] = false;
-                pacman = al_load_bitmap("pacmanL.tga");
                 break;
 
             case ALLEGRO_KEY_RIGHT:
@@ -395,7 +432,6 @@ int main(int argc, char **argv)
                 key[KEY_DOWN] = false;
                 key[KEY_LEFT] = false;
                 key[KEY_RIGHT] = true;
-                pacman = al_load_bitmap("pacmanR.tga");
                 break;
             }
         }
