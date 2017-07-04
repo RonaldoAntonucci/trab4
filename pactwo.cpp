@@ -18,31 +18,32 @@ enum MYKEYS
 char MAPA[26][26] =
 {
     "1111111111111111111111111",
-    "1200000000000000000000021",
-    "1011110111012101110111101",
-    "1000010100010100010100001",
-    "1011010101110111010101101",
-    "1001010101000001010101001",
-    "1101000001011101000001011",
-    "1101110111000001110111011",
-    "1100000000010100000000011",
-    "1111011101110111011101111",
-    "1110000000000000000000111",
-    "1000111110112110111110001",
-    "1011111000110110001111101",
-    "1000100010110110100010001",
-    "1110101110000000111010111",
-    "1000100010110110100010001",
-    "1011111000110110001111101",
-    "1000011110110110111100001",
-    "1101000000002000000001011",
-    "1101111100110110011111011",
-    "1000001110010100111000001",
-    "1011100000000000000011101",
-    "1011111111110111111111101",
-    "1200000000000000000000021",
+    "1322222222222222222222231",
+    "1211112111212121112111121",
+    "1222212122212122212122221",
+    "1211212121112111212121121",
+    "1221212121222221212121221",
+    "1121222221211121222221211",
+    "1121112111222221112111211",
+    "1122222222212122222222211",
+    "1111211121112111211121111",
+    "1112222222222222222222111",
+    "1222111112112112111112221",
+    "1211111222112112221111121",
+    "1222122212112112122212221",
+    "1112121112220222111212111",
+    "1222122212112112122212221",
+    "1211111222112112221111121",
+    "1222211112112112111122221",
+    "1121222222222222222221211",
+    "1121111122112112211111211",
+    "1222221112212122111222221",
+    "1211122222222222222211121",
+    "1211111111112111111111121",
+    "1322222222222222222222231",
     "1111111111111111111111111",
 };
+
 
 ALLEGRO_DISPLAY *display = NULL;
 ALLEGRO_EVENT_QUEUE *event_queue = NULL;
@@ -54,6 +55,26 @@ int i = 14, j = 12; //posição inicial do Pacman na matriz
 int q = 20; //tamanho de cada célula no mapa
 int posy = i*q;
 int posx = j*q;
+int balaoy = q;
+int balaox = q;
+ALLEGRO_BITMAP *balao = NULL;
+ALLEGRO_BITMAP *bug1 = NULL;
+ALLEGRO_BITMAP *bug2 = NULL;
+ALLEGRO_BITMAP *bug3 = NULL;
+ALLEGRO_BITMAP *bug4 = NULL;
+int bug1x = 1*q;
+int bug1y = 1*q;
+int bug2x = 1*q;
+int bug2y = 23*q;
+int bug3x = 23*q;
+int bug3y = 1*q;
+int bug4x = 23*q;
+int bug4y = 23*q;
+bool tembalao1 = true;
+bool tembalao2 = true;
+bool tembalao3 = true;
+bool tembalao4 = true;
+
 
 bool key[4] = { false, false, false, false };
 bool redraw = true;
@@ -111,6 +132,38 @@ int inicializa() {
     }
     al_draw_bitmap(pacman,posx,posy,0);
 
+    bug1 = al_load_bitmap("bug.tga");
+    bug2 = al_load_bitmap("bug.tga");
+    bug3 = al_load_bitmap("bug.tga");
+    bug4 = al_load_bitmap("bug.tga");
+    if(!bug1 || !bug2 || !bug3 || !bug4)
+    {
+        cout << "Falha ao carregar os bugs!" << endl;
+        al_destroy_display(display);
+        return 0;
+    }
+    al_draw_bitmap(bug1,bug1x,bug1y,0);
+    al_draw_bitmap(bug1,bug2x,bug2y,0);
+    al_draw_bitmap(bug1,bug3x,bug3y,0);
+    al_draw_bitmap(bug1,bug4x,bug4y,0);
+
+        balao = al_load_bitmap("balao.tga");
+        if(!balao)
+        {
+            cout << "Falha ao carregar os baloes!" << endl;
+            al_destroy_display(display);
+            return 0;
+        }
+
+    for(int l=1; l < 24; l++)
+        for(int k=1; k < 24; k++){
+            if (MAPA[l][k] == '2'){
+                balaox = k * q;
+                balaoy = l * q;
+                al_draw_bitmap(balao, balaox, balaoy,0);
+            }
+        }
+
     event_queue = al_create_event_queue();
     if(!event_queue)
     {
@@ -131,6 +184,73 @@ int inicializa() {
     return 1;
 }
 
+int gera_num(){
+      int aleatorio = ( rand() % 5 );
+      std::cout << "Numero Aleatorio = " << aleatorio << std::endl;
+      return aleatorio;
+}
+void movimenta_bug ( int &bugx, int &bugy, bool &tembalao){
+    int bugi = bugx/q;
+    int bugj = bugy/q;
+    if (tembalao)
+        MAPA[bugi][bugj] = 2;
+    else
+        MAPA[bugi][bugj] = 0;
+    switch(gera_num()){
+        case 0:
+            break;
+
+        case 1:
+        if (MAPA[bugi-1][bugj] == '1')
+            movimenta_bug(bugx,bugy,tembalao);
+        else{
+            if(MAPA[bugi][bugj] == '0')
+                tembalao = false;
+            bugi--;
+            bugx = bugi*q;
+            MAPA[bugi][bugj] = 3;
+        }
+        break;
+
+        case 2:
+        if (MAPA[bugi][bugj+1] == '1')
+            movimenta_bug(bugx,bugy,tembalao);
+        else{
+            if(MAPA[bugi][bugj] == '0')
+                tembalao = false;
+            bugj++;
+            bugy = bugj*q;
+            MAPA[bugi][bugj] = 3;
+        }
+        break;
+
+        case 3:
+        if (MAPA[bugi+1][bugj] == '1')
+            movimenta_bug(bugx,bugy,tembalao);
+        else{
+            if(MAPA[bugi][bugj] == '0')
+                tembalao = false;
+            bugi++;
+            bugx = bugi*q;
+            MAPA[bugi][bugj] = 3;
+        }
+        break;
+
+        case 4:
+        if (MAPA[bugj][bugi-1] == '1')
+            movimenta_bug(bugx,bugy,tembalao);
+        else{
+            if(MAPA[bugi][bugj] == '0')
+                tembalao = false;
+            bugj--;
+            bugy = bugj*q;
+            MAPA[bugi][bugj] = 3;
+        }
+        break;
+    }
+
+}
+
 int main(int argc, char **argv)
 {
     if(!inicializa()) return -1;
@@ -149,6 +269,11 @@ int main(int argc, char **argv)
             		cout << "Mais um ponto!!!" << endl;
             		MAPA[i-1][j]='0';
             	}
+            	else if(MAPA[i-1][j] == '3'){
+                    cout << "Game Over!!!" << endl;
+                    sair = true;
+                    break;
+            	}
                 i--;
                 posy = i*q;
             }
@@ -159,6 +284,11 @@ int main(int argc, char **argv)
             		points++;
             		cout << "Mais um ponto!!!" << endl;
             		MAPA[i+1][j]='0';
+            	}
+            	else if(MAPA[i+1][j] == '3'){
+                    cout << "Game Over!!!" << endl;
+                    sair = true;
+                    break;
             	}
                 i++;
                 posy = i*q;
@@ -171,20 +301,35 @@ int main(int argc, char **argv)
             		cout << "Mais um ponto!!!" << endl;
             		MAPA[i][j-1]='0';
             	}
+            	else if(MAPA[i][j-1] == '3'){
+                    cout << "Game Over!!!" << endl;
+                    sair = true;
+                    break;
+            	}
                 j--;
                 posx = j*q;
             }
 
             if(key[KEY_RIGHT] && MAPA[i][j+1] != '1')
             {
-            	if(MAPA[i][j+1]==2){
+            	if(MAPA[i][j+1]=='2'){
             		points++;
             		cout << "Mais um ponto!!!" << endl;
             		MAPA[i][j+1]='0';
             	}
+            	else if(MAPA[i][j+1] == '3'){
+                    cout << "Game Over!!!" << endl;
+                    sair = true;
+                    break;
+            	}
                 j++;
                 posx = j*q;
             }
+
+            movimenta_bug(bug1x,bug1y,tembalao1);
+            movimenta_bug(bug2x,bug2y,tembalao2);
+            movimenta_bug(bug3x,bug3y,tembalao3);
+            movimenta_bug(bug4x,bug4y,tembalao4);
 
             redraw = true;
         }
@@ -263,6 +408,18 @@ int main(int argc, char **argv)
 
             al_draw_bitmap(mapa,0,0,0);
             al_draw_bitmap(pacman,posx,posy,0);
+            al_draw_bitmap(bug1,bug1x,bug1y,0);
+            al_draw_bitmap(bug1,bug2x,bug2y,0);
+            al_draw_bitmap(bug1,bug3x,bug3y,0);
+            al_draw_bitmap(bug1,bug4x,bug4y,0);
+            for(int l=1; l < 25; l++)
+                for(int k=1; k < 25; k++){
+                    if (MAPA[l][k] == '2'){
+                        balaox = k * q;
+                        balaoy = l * q;
+                        al_draw_bitmap(balao, balaox, balaoy,0);
+                    }
+                }
             al_flip_display();
         }
     }
