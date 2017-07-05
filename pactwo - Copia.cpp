@@ -54,7 +54,6 @@ int i = 14, j = 12; //posição inicial do Pacman na matriz
 int q = 20; //tamanho de cada célula no mapa
 int posy = i*q;
 int posx = j*q;
-int dirpac = -1;
 int balaoy = q;
 int balaox = q;
 ALLEGRO_BITMAP *balao = NULL;
@@ -70,14 +69,10 @@ int bug3x = 23*q;
 int bug3y = 23*q;
 int bug4x = 23*q;
 int bug4y = 1*q;
-int dirbug1=1;
-int dirbug2=0;
-int dirbug3=3;
-int dirbug4=2;
-char spriteb1[10] = {'b','u','g','1','1','.','t','g','a','\0'};
-char sprt2[10] = {'b','u','g','1','0','.','t','g','a','\0'};
-char spr3[10] = {'b','u','g','1','3','.','t','g','a','\0'};
-char sp4[10] = {'b','u','g','1','2','.','t','g','a','\0'};
+int dirbug1;
+int dirbug2;
+int dirbug3;
+int dirbug4;
 
 
 
@@ -153,10 +148,10 @@ int inicializa() {
                 al_draw_bitmap(balao, balaox, balaoy,0);
             }
         }
-    bug1 = al_load_bitmap(spriteb1);
-    bug2 = al_load_bitmap(sprt2);
-    bug3 = al_load_bitmap(spr3);
-    bug4 = al_load_bitmap(sp4);
+    bug1 = al_load_bitmap("bug.tga");
+    bug2 = al_load_bitmap("bug.tga");
+    bug3 = al_load_bitmap("bug.tga");
+    bug4 = al_load_bitmap("bug.tga");
     if(!bug1 || !bug2 || !bug3 || !bug4)
     {
         cout << "Falha ao carregar os bugs!" << endl;
@@ -190,6 +185,7 @@ int inicializa() {
 
 int gera_num(){
       int aleatorio = ( rand() % 4 );
+      std::cout << "Numero Aleatorio = " << aleatorio << std::endl;
       return aleatorio;
 }
 
@@ -228,12 +224,7 @@ int possibilidades (int const &bugi, int const &bugj){
     cout << "possibilidades:" << possibilidade << endl;
     return possibilidade;
 }
-bool movimenta_bug (int &bugy, int &bugx, int &dir, char sprite[]){
-    if (sprite[3] == '1')
-        sprite[3] = '2';
-    else
-        sprite[3] = '1';
-
+bool movimenta_bug (int &bugy, int &bugx, int &dir){
     int bugi = bugy/q;
     int bugj = bugx/q;
     cout << "direcao: "<<dir << endl;
@@ -243,21 +234,6 @@ bool movimenta_bug (int &bugy, int &bugx, int &dir, char sprite[]){
                 dir = gera_num();
             cout << "mudou dir para:"  << dir << endl;
         }while(!possivel(bugi,bugj,dir));
-
-       switch(dir){
-            case 0:
-                sprite[4] = '0';
-                break;
-            case 1:
-                sprite[4] = '1';
-                break;
-            case 2:
-                sprite[4] = '2';
-                break;
-            case 3:
-                sprite[4] = '3';
-                break;
-        }
     }
 
     switch(dir){
@@ -300,76 +276,6 @@ bool movimenta_bug (int &bugy, int &bugx, int &dir, char sprite[]){
     return false;
 }
 
-void movimenta_pacman (){
-    static int dir = -1;
-    if ( possivel(i,j,dirpac))
-        dir=dirpac;
-    switch (dir){
-        case 0:
-            if(MAPA[i-1][j] != '1')
-            {
-                 pacman = al_load_bitmap("pacmanU.tga");
-            	if(MAPA[i-1][j]=='2'){
-            		points++;
-            		cout << "Mais um ponto!!!" << endl;
-            		MAPA[i-1][j]='0';
-            	}
-                i--;
-                posy = i*q;
-            }
-        break;
-
-        case 1:
-            if(MAPA[i][j+1] != '1')
-            {
-                pacman = al_load_bitmap("pacmanR.tga");
-            	if(MAPA[i][j+1]=='2'){
-            		points++;
-            		cout << "Mais um ponto!!!" << endl;
-            		MAPA[i][j+1]='0';
-            	}
-                j++;
-                posx = j*q;
-            }
-        break;
-
-        case 2:
-            if(MAPA[i+1][j] != '1')
-            {
-                 pacman = al_load_bitmap("pacmanD.tga");
-            	if(MAPA[i+1][j] =='2'){
-            		points++;
-            		cout << "Mais um ponto!!!" << endl;
-            		MAPA[i+1][j]='0';
-            	}
-                i++;
-                posy = i*q;
-            }
-        break;
-
-        case 3:
-            if(MAPA[i][j-1] != '1')
-            {
-                 pacman = al_load_bitmap("pacmanL.tga");
-            	if(MAPA[i][j-1]=='2'){
-            		points++;
-            		cout << "Mais um ponto!!!" << endl;
-            		MAPA[i][j-1]='0';
-            	}
-                j--;
-                posx = j*q;
-            }
-        break;
-    }
-}
-
-void movimento(){
-    bug1 = al_load_bitmap(spriteb1);
-    bug2 = al_load_bitmap(sprt2);
-    bug3 = al_load_bitmap(spr3);
-    bug4 = al_load_bitmap(sp4);
-}
-
 int main(int argc, char **argv)
 {
     if(!inicializa()) return -1;
@@ -381,9 +287,15 @@ int main(int argc, char **argv)
 
         if(ev.type == ALLEGRO_EVENT_TIMER)
         {
-            if(key[KEY_UP])
+            if(key[KEY_UP] && MAPA[i-1][j] != '1')
             {
-            	dirpac = 0;
+            	if(MAPA[i-1][j]=='2'){
+            		points++;
+            		cout << "Mais um ponto!!!" << endl;
+            		MAPA[i-1][j]='0';
+            	}
+                i--;
+                posy = i*q;
                 if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
                     cout << "Game Over!!!" << endl;
                     sair = true;
@@ -391,9 +303,16 @@ int main(int argc, char **argv)
             	}
             }
 
-            if(key[KEY_DOWN])
+            if(key[KEY_DOWN] && MAPA[i+1][j] != '1')
             {
-            	dirpac = 2;
+            	if(MAPA[i+1][j]=='2'){
+            		points++;
+            		cout << "Mais um ponto!!!" << endl;
+            		MAPA[i+1][j]='0';
+            	}
+
+                i++;
+                posy = i*q;
                  if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
                     cout << "Game Over!!!" << endl;
                     sair = true;
@@ -401,9 +320,15 @@ int main(int argc, char **argv)
             	}
             }
 
-            if(key[KEY_LEFT])
+            if(key[KEY_LEFT] && MAPA[i][j-1] != '1')
             {
-            	dirpac = 3;
+            	if(MAPA[i][j-1]=='2'){
+            		points++;
+            		cout << "Mais um ponto!!!" << endl;
+            		MAPA[i][j-1]='0';
+            	}
+                j--;
+                posx = j*q;
                  if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
                     cout << "Game Over!!!" << endl;
                     sair = true;
@@ -411,22 +336,25 @@ int main(int argc, char **argv)
             	}
             }
 
-            if(key[KEY_RIGHT])
+            if(key[KEY_RIGHT] && MAPA[i][j+1] != '1')
             {
-            	dirpac = 1;
+            	if(MAPA[i][j+1]=='2'){
+            		points++;
+            		cout << "Mais um ponto!!!" << endl;
+            		MAPA[i][j+1]='0';
+            	}
+                j++;
+                posx = j*q;
                 if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
                     cout << "Game Over!!!" << endl;
                     sair = true;
                     break;
             	}
             }
-            movimenta_pacman();
-            sair=movimenta_bug(bug1y,bug1x,dirbug1,spriteb1);
-            sair=movimenta_bug(bug2y,bug2x,dirbug2,sprt2);
-            sair=movimenta_bug(bug3y,bug3x,dirbug3,spr3);
-            sair=movimenta_bug(bug4y,bug4x,dirbug4,sp4);
-
-            movimento();
+            sair=movimenta_bug(bug1y,bug1x,dirbug1);
+            sair=movimenta_bug(bug2y,bug2x,dirbug2);
+            sair=movimenta_bug(bug3y,bug3x,dirbug3);
+            sair=movimenta_bug(bug4y,bug4x,dirbug4);
 
             redraw = true;
         }
@@ -443,6 +371,7 @@ int main(int argc, char **argv)
                 key[KEY_DOWN] = false;
                 key[KEY_LEFT] = false;
                 key[KEY_RIGHT] = false;
+                pacman = al_load_bitmap("pacmanU.tga");
                 break;
 
             case ALLEGRO_KEY_DOWN:
@@ -450,6 +379,7 @@ int main(int argc, char **argv)
                 key[KEY_DOWN] = true;
                 key[KEY_LEFT] = false;
                 key[KEY_RIGHT] = false;
+                pacman = al_load_bitmap("pacmanD.tga");
                 break;
 
             case ALLEGRO_KEY_LEFT:
@@ -457,6 +387,7 @@ int main(int argc, char **argv)
                 key[KEY_DOWN] = false;
                 key[KEY_LEFT] = true;
                 key[KEY_RIGHT] = false;
+                pacman = al_load_bitmap("pacmanL.tga");
                 break;
 
             case ALLEGRO_KEY_RIGHT:
@@ -464,6 +395,7 @@ int main(int argc, char **argv)
                 key[KEY_DOWN] = false;
                 key[KEY_LEFT] = false;
                 key[KEY_RIGHT] = true;
+                pacman = al_load_bitmap("pacmanR.tga");
                 break;
             }
         }
@@ -510,9 +442,9 @@ int main(int argc, char **argv)
                     }
                 }
             al_draw_bitmap(bug1,bug1x,bug1y,0);
-            al_draw_bitmap(bug2,bug2x,bug2y,0);
-            al_draw_bitmap(bug3,bug3x,bug3y,0);
-            al_draw_bitmap(bug4,bug4x,bug4y,0);
+            al_draw_bitmap(bug1,bug2x,bug2y,0);
+            al_draw_bitmap(bug1,bug3x,bug3y,0);
+            al_draw_bitmap(bug1,bug4x,bug4y,0);
             al_flip_display();
         }
     }
