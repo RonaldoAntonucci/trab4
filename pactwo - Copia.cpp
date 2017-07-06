@@ -1,6 +1,11 @@
 #include <allegro5/allegro.h>
+#include <allegro5/allegro_font.h>
+#include <allegro5/allegro_ttf.h>
 #include "allegro5/allegro_image.h"
+#include <allegro5/allegro_audio.h>
+#include <allegro5/allegro_acodec.h>
 #include <iostream>
+#include <stdio.h>
 
 using namespace std;
 
@@ -18,7 +23,7 @@ enum MYKEYS
 char MAPA[26][26] =
 {
     "1111111111111111111111111",
-    "1222222222222222222222221",
+    "1322222222222222222222231",
     "1211112111212121112111121",
     "1222212122212122212122221",
     "1211212121112111212121121",
@@ -40,20 +45,26 @@ char MAPA[26][26] =
     "1222221112212122111222221",
     "1211122222222222222211121",
     "1211111111112111111111121",
-    "1222222222222222222222221",
+    "1322222222222222222222231",
     "1111111111111111111111111",
 };
 
+
 ALLEGRO_DISPLAY *display = NULL;
+ALLEGRO_FONT *fonte = NULL;
 ALLEGRO_EVENT_QUEUE *event_queue = NULL;
 ALLEGRO_TIMER *timer = NULL;
 ALLEGRO_BITMAP *bouncer = NULL;
 ALLEGRO_BITMAP *mapa   = NULL;
 ALLEGRO_BITMAP *pacman   = NULL;
+ALLEGRO_AUDIO_STREAM *musica = NULL;
+ALLEGRO_SAMPLE *sample = NULL;
+
 int i = 14, j = 12; //posição inicial do Pacman na matriz
 int q = 20; //tamanho de cada célula no mapa
 int posy = i*q;
 int posx = j*q;
+int dirpac = -1;
 int balaoy = q;
 int balaox = q;
 ALLEGRO_BITMAP *balao = NULL;
@@ -61,19 +72,29 @@ ALLEGRO_BITMAP *bug1 = NULL;
 ALLEGRO_BITMAP *bug2 = NULL;
 ALLEGRO_BITMAP *bug3 = NULL;
 ALLEGRO_BITMAP *bug4 = NULL;
+ALLEGRO_BITMAP *power = NULL;
 int bug1x = 1*q;
 int bug1y = 1*q;
 int bug2x = 1*q;
 int bug2y = 23*q;
 int bug3x = 23*q;
-int bug3y = 23*q;
+int bug3y = 1*q;
 int bug4x = 23*q;
-int bug4y = 1*q;
-int dirbug1;
-int dirbug2;
-int dirbug3;
-int dirbug4;
-
+int bug4y = 23*q;
+int dirbug1=1;
+int dirbug2=0;
+int dirbug3=3;
+int dirbug4=2;
+bool bug1morto=false;
+bool bug2morto=false;
+bool bug3morto=false;
+bool bug4morto=false;
+char spritepac[15] = {'l','e','v','i','_','1','_','1','_','0','.','t','g','a','\0'};
+char spriteb1[10] = {'b','u','g','1','1','.','t','g','a','\0'};
+char spriteb2[10] = {'b','u','g','1','0','.','t','g','a','\0'};
+char spriteb3[10] = {'b','u','g','1','3','.','t','g','a','\0'};
+char spriteb4[10] = {'b','u','g','1','2','.','t','g','a','\0'};
+int timepower = 0;
 
 
 bool key[4] = { false, false, false, false };
@@ -87,13 +108,41 @@ int inicializa() {
         return 0;
     }
 
+    // Inicialização do add-on para uso de fontes
+    al_init_font_addon();
+
+    // Inicialização do add-on para uso de fontes True Type
+    if (!al_init_ttf_addon())
+    {
+        fprintf(stderr, "Falha ao inicializar add-on allegro_ttf.\n");
+        return 0;
+    }
+
+    if (!al_install_audio())
+    {
+        cout << "Falha ao inicializar audio" << endl;
+        return 0;
+    }
+
+    if (!al_init_acodec_addon())
+    {
+        cout << "Falha ao inicializar codecs de audio." << endl;;
+        return 0;
+    }
+
+    if (!al_reserve_samples(1))
+    {
+        cout << "Falha ao alocar canais de audio." << endl;
+        return 0;
+    }
+
     if(!al_install_keyboard())
     {
         cout << "Falha ao inicializar o teclado" << endl;
         return 0;
     }
 
-    timer = al_create_timer(1.2 / FPS);
+    timer = al_create_timer(1.5 / FPS);
     if(!timer)
     {
         cout << "Falha ao inicializar o temporizador" << endl;
@@ -123,7 +172,18 @@ int inicializa() {
     }
     al_draw_bitmap(mapa,0,0,0);
 
-    pacman = al_load_bitmap("pacmanL.tga");
+    // Carregando o arquivo de fonte
+
+    fonte = al_load_font("fonts/DejaVuSans-Bold.ttf", 30, 0);
+
+    if (!fonte)
+    {
+        fprintf(stderr, "Falha ao carregar fonte.\n");
+        al_destroy_display(display);
+        return 0;
+    }
+
+    pacman = al_load_bitmap(spritepac);
     if(!pacman)
     {
         cout << "Falha ao carregar o pacman!" << endl;
@@ -132,10 +192,26 @@ int inicializa() {
     }
     al_draw_bitmap(pacman,posx,posy,0);
 
-        balao = al_load_bitmap("balao.tga");
-        if(!balao)
+    sample = al_load_sample("musicas/mc.wav");
+    if (!sample)
+    {
+        cout<< "Falha ao carregar sample" << endl;;
+        al_destroy_display(display);
+        return 0;
+    }
+
+    balao = al_load_bitmap("balao.tga");
+    if(!balao)
+    {
+        cout << "Falha ao carregar os baloes!" << endl;
+        al_destroy_display(display);
+        return 0;
+    }
+
+    power = al_load_bitmap("power.tga");
+        if(!power)
         {
-            cout << "Falha ao carregar os baloes!" << endl;
+            cout << "Falha ao carregar os poderes!" << endl;
             al_destroy_display(display);
             return 0;
         }
@@ -147,11 +223,16 @@ int inicializa() {
                 balaoy = l * q;
                 al_draw_bitmap(balao, balaox, balaoy,0);
             }
+            else if (MAPA[l][k] == '3'){
+                balaox = k * q;
+                balaoy = l * q;
+                al_draw_bitmap(power, balaox, balaoy,0);
+            }
         }
-    bug1 = al_load_bitmap("bug.tga");
-    bug2 = al_load_bitmap("bug.tga");
-    bug3 = al_load_bitmap("bug.tga");
-    bug4 = al_load_bitmap("bug.tga");
+    bug1 = al_load_bitmap(spriteb1);
+    bug2 = al_load_bitmap(spriteb2);
+    bug3 = al_load_bitmap(spriteb3);
+    bug4 = al_load_bitmap(spriteb4);
     if(!bug1 || !bug2 || !bug3 || !bug4)
     {
         cout << "Falha ao carregar os bugs!" << endl;
@@ -159,9 +240,9 @@ int inicializa() {
         return 0;
     }
     al_draw_bitmap(bug1,bug1x,bug1y,0);
-    al_draw_bitmap(bug1,bug2x,bug2y,0);
-    al_draw_bitmap(bug1,bug3x,bug3y,0);
-    al_draw_bitmap(bug1,bug4x,bug4y,0);
+    al_draw_bitmap(bug2,bug2x,bug2y,0);
+    al_draw_bitmap(bug3,bug3x,bug3y,0);
+    al_draw_bitmap(bug4,bug4x,bug4y,0);
 
     event_queue = al_create_event_queue();
     if(!event_queue)
@@ -172,11 +253,24 @@ int inicializa() {
         return 0;
     }
 
+    al_set_window_title(display, "PacLevi");
+
+    musica = al_load_audio_stream("musicas/sas.ogg", 4, 1024);
+    if (!musica)
+    {
+        cout<<"Falha ao carregar audio."<<endl;
+        al_destroy_event_queue(event_queue);
+        al_destroy_display(display);
+        al_destroy_sample(sample);
+        return 0;
+    }
+
     al_register_event_source(event_queue, al_get_display_event_source(display));
     al_register_event_source(event_queue, al_get_timer_event_source(timer));
     al_register_event_source(event_queue, al_get_keyboard_event_source());
 
     al_clear_to_color(al_map_rgb(0,0,0));
+    al_draw_textf(fonte, al_map_rgb(255, 255, 255), SCREEN_W / 2, 500, ALLEGRO_ALIGN_LEFT, "Pontuacao: %d", points);
     al_flip_display();
     al_start_timer(timer);
 
@@ -185,11 +279,10 @@ int inicializa() {
 
 int gera_num(){
       int aleatorio = ( rand() % 4 );
-      std::cout << "Numero Aleatorio = " << aleatorio << std::endl;
       return aleatorio;
 }
 
-bool possivel (int const &bugi, int const &bugj, int const &dir ){
+bool possivel (int const &bugi, int const &bugj, int const &dir){
     switch(dir){
         case 0:
             if ( MAPA[bugi-1][bugj] == '1')
@@ -221,64 +314,334 @@ int possibilidades (int const &bugi, int const &bugj){
         possibilidade--;
     if ( MAPA[bugi][bugj-1] == '1')
         possibilidade--;
-    cout << "possibilidades:" << possibilidade << endl;
     return possibilidade;
 }
-bool movimenta_bug (int &bugy, int &bugx, int &dir){
+
+bool movimenta_bug (int &bugy, int &bugx, int &dir, char sprite[], bool &bugmorto){
+    if(!bugmorto){
+    if (sprite[3] == '1')
+        sprite[3] = '2';
+    else
+        sprite[3] = '1';
+
     int bugi = bugy/q;
     int bugj = bugx/q;
-    cout << "direcao: "<<dir << endl;
     if (possibilidades(bugi,bugj) > 2 || !possivel(bugi,bugj,dir)){
         do{
             for(int muda = dir; dir == muda;)
                 dir = gera_num();
-            cout << "mudou dir para:"  << dir << endl;
         }while(!possivel(bugi,bugj,dir));
+
+       switch(dir){
+            case 0:
+                sprite[4] = '0';
+                break;
+            case 1:
+                sprite[4] = '1';
+                break;
+            case 2:
+                sprite[4] = '2';
+                break;
+            case 3:
+                sprite[4] = '3';
+                break;
+        }
     }
 
     switch(dir){
         case 0:
+            if (MAPA[i][j] == MAPA[bugi-1][bugj]){
+                        if(timepower <= 0 ){
+                            cout << "Game Over0!!!" << endl;
+                                return true;
+                        }
+                        else if(!bugmorto){
+                            points+=10;
+                            cout << "Mais 10 pontos!!!" << endl;
+                            bugmorto = true;
+                            return false;
+                        }
+            }
             bugi--;
             bugy = bugi*q;
-            if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
-                cout << "Game Over!!!" << endl;
-                return true;
+
+        break;
+
+        case 1:
+            if (MAPA[i][j] == MAPA[bugi][bugj+1]){
+                        if(timepower <= 0 ){
+                            cout << "Game Over1!!!" << endl;
+                                return true;
+                        }
+                        else if(!bugmorto){
+                            points+=10;
+                            cout << "Mais 10 pontos!!!" << endl;
+                            bugmorto = true;
+                            return false;
+                        }
+            }
+            bugj++;
+            bugx = bugj*q;
+
+        break;
+
+        case 2:
+            if (MAPA[i][j] == MAPA[bugi+1][bugj]){
+                        if(timepower <= 0 ){
+                            cout << "Game Over2!!!" << endl;
+                                return true;
+                        }
+                        else if(!bugmorto){
+                            points+=10;
+                            cout << "Mais 10 pontos!!!" << endl;
+                            bugmorto = true;
+                            return false;
+                        }
+            }
+            bugi++;
+            bugy = bugi*q;
+
+        break;
+
+        case 3:
+            if (MAPA[i][j] == MAPA[bugi][bugj-1]){
+                        if(timepower <= 0 ){
+                            cout << "Game Over3!!!" << endl;
+                                return true;
+                        }
+                        else if(!bugmorto){
+                            points+=10;
+                            cout << "Mais 10 pontos!!!" << endl;
+                            bugmorto = true;
+                            return false;
+                        }
+            }
+            bugj--;
+            bugx = bugj*q;
+
+        break;
+    }
+    return false;
+    }
+}
+
+bool movimenta_pacman (){
+    if (spritepac[5] == '1')
+        spritepac[5] = '2';
+    else
+        spritepac[5] = '1';
+
+    static int dir = -1;
+    if ( possivel(i,j,dirpac))
+        dir=dirpac;
+
+    switch (dir){
+        case 0:
+            if(MAPA[i-1][j] != '1')
+            {
+                spritepac[7] = '0';
+                if(MAPA[i-1][j]=='2'){
+                    points++;
+                    cout << "Mais um ponto!!!" << endl;
+                    MAPA[i-1][j]='0';
+                }
+                else if(MAPA[i-1][j]=='3'){
+                    timepower=60;
+                    spritepac[9] = '1';
+                    points++;
+                    cout << "Mais um ponto!!!\nPoder ativado!!!" << endl;
+                    MAPA[i-1][j]='0';
+                }
+                if( (MAPA[i-1][j] == MAPA[bug1y/q][bug1x/q] && !bug1morto)
+                    || (MAPA[i-1][j] == MAPA[bug2y/q][bug2x/q] && !bug2morto)
+                    || (MAPA[i-1][j] == MAPA[bug3y/q][bug3x/q] && !bug3morto)
+                    || (MAPA[i-1][j] == MAPA[bug4y/q][bug4x/q] && !bug4morto)){
+                        if(timepower <= 0 ){
+                            cout << "Game Over4!!!" << endl;
+                                return true;
+                        }
+                        else if (MAPA[i-1][j] == MAPA[bug1y/q][bug1x/q]){
+                            bug1morto = true;
+                            al_destroy_bitmap(bug1);
+                        }
+                        else if (MAPA[i-1][j] == MAPA[bug2y/q][bug2x/q]){
+                            bug2morto = true;
+                            al_destroy_bitmap(bug2);
+                        }
+                        else if (MAPA[i-1][j] == MAPA[bug3y/q][bug3x/q]){
+                            bug3morto = true;
+                            al_destroy_bitmap(bug3);
+                        }
+                        else if (MAPA[i-1][j] == MAPA[bug4y/q][bug4x/q]){
+                            bug4morto = true;
+                            al_destroy_bitmap(bug4);
+                        }
+                }
+                i--;
+                posy = i*q;
             }
         break;
 
         case 1:
-            bugj++;
-            bugx = bugj*q;
-            if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
-                cout << "Game Over!!!" << endl;
-                return true;
+            if(MAPA[i][j+1] != '1')
+            {
+                spritepac[7] = '1';
+                if(MAPA[i][j+1]=='2'){
+                    points++;
+                    cout << "Mais um ponto!!!" << endl;
+                    MAPA[i][j+1]='0';
+                }
+                 else if(MAPA[i][j+1]=='3'){
+                    timepower=60;
+                    spritepac[9] = '1';
+                    points++;
+                    cout << "Mais um ponto!!!\nPoder ativado!!!" << endl;
+                    MAPA[i][j+1]='0';
+                }
+                if( (MAPA[i][j+1] == MAPA[bug1y/q][bug1x/q] && !bug1morto)
+                    || (MAPA[i][j+1] == MAPA[bug2y/q][bug2x/q] && !bug2morto)
+                    || (MAPA[i][j+1] == MAPA[bug3y/q][bug3x/q] && !bug3morto)
+                    || (MAPA[i][j+1] == MAPA[bug4y/q][bug4x/q] && !bug4morto)){
+                        if(timepower <= 0 ){
+                            cout << "Game Over5!!!" << endl;
+                            return true;
+                        }
+                        else if (MAPA[i][j+1] == MAPA[bug1y/q][bug1x/q])
+                            bug1morto = true;
+                        else if (MAPA[i][j+1] == MAPA[bug2y/q][bug2x/q])
+                            bug2morto = true;
+                        else if (MAPA[i][j+1] == MAPA[bug3y/q][bug3x/q])
+                            bug3morto = true;
+                        else if (MAPA[i][j+1] == MAPA[bug4y/q][bug4x/q])
+                            bug4morto = true;
+                }
+                j++;
+                posx = j*q;
             }
         break;
 
         case 2:
-            bugi++;
-            bugy = bugi*q;
-            if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
-                cout << "Game Over!!!" << endl;
-                return true;
+            if(MAPA[i+1][j] != '1')
+            {
+                spritepac[7] = '2';
+                if(MAPA[i+1][j] =='2'){
+                    points++;
+                    cout << "Mais um ponto!!!" << endl;
+                    MAPA[i+1][j]='0';
+                }
+                 else if(MAPA[i+1][j]=='3'){
+                    timepower=60;
+                    spritepac[9] = '1';
+                    points++;
+                    cout << "Mais um ponto!!!\nPoder ativado!!!" << endl;
+                    MAPA[i+1][j]='0';
+                }
+                if( (MAPA[i+1][j] == MAPA[bug1y/q][bug1x/q] && !bug1morto)
+                    || (MAPA[i+1][j] == MAPA[bug2y/q][bug2x/q] && !bug2morto)
+                    || (MAPA[i+1][j] == MAPA[bug3y/q][bug3x/q] && !bug3morto)
+                    || (MAPA[i+1][j] == MAPA[bug4y/q][bug4x/q] && !bug4morto)){
+                        if(timepower <= 0 ){
+                            cout << "Game Over6!!!" << endl;
+                            return true;
+                        }
+                        else if (MAPA[i+1][j] == MAPA[bug1y/q][bug1x/q]){
+                            bug1morto = true;
+                            al_destroy_bitmap(bug1);
+                        }
+                        else if (MAPA[i+1][j] == MAPA[bug2y/q][bug2x/q]){
+                            bug2morto = true;
+                            al_destroy_bitmap(bug2);
+                        }
+                        else if (MAPA[i+1][j] == MAPA[bug3y/q][bug3x/q]){
+                            bug3morto = true;
+                            al_destroy_bitmap(bug3);
+                        }
+                        else if (MAPA[i+1][j] == MAPA[bug4y/q][bug4x/q]){
+                            bug4morto = true;
+                            al_destroy_bitmap(bug4);
+                        }
+                }
+                i++;
+                posy = i*q;
             }
         break;
 
         case 3:
-            bugj--;
-            bugx = bugj*q;
-            if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
-                cout << "Game Over!!!" << endl;
-                return true;
+            if(MAPA[i][j-1] != '1')
+            {
+                spritepac[7] = '3';
+                if(MAPA[i][j-1]=='2'){
+                    points++;
+                    cout << "Mais um ponto!!!" << endl;
+                    MAPA[i][j-1]='0';
+                }
+                 else if(MAPA[i][j-1]=='3'){
+                    timepower=60;
+                    spritepac[9] = '1';
+                    points++;
+                    cout << "Mais um ponto!!!\nPoder ativado!!!" << endl;
+                    MAPA[i][j-1]='0';
+                }
+                if( (MAPA[i][j-1] == MAPA[bug1y/q][bug1x/q] && !bug1morto)
+                    || (MAPA[i][j-1] == MAPA[bug2y/q][bug2x/q] && !bug2morto)
+                    || (MAPA[i][j-1] == MAPA[bug3y/q][bug3x/q] && !bug3morto)
+                    || (MAPA[i][j-1] == MAPA[bug4y/q][bug4x/q] && !bug4morto)){
+                        if(timepower <= 0 ){
+                            cout << "Game Over7!!!" << endl;
+                            return true;
+                        }
+                        else if (MAPA[i][j-1] == MAPA[bug1y/q][bug1x/q]){
+                            bug1morto = true;
+                            al_destroy_bitmap(bug1);
+                        }
+                        else if (MAPA[i][j-1] == MAPA[bug2y/q][bug2x/q]){
+                            bug2morto = true;
+                            al_destroy_bitmap(bug2);
+                        }
+                        else if (MAPA[i][j-1] == MAPA[bug3y/q][bug3x/q]){
+                            bug3morto = true;
+                            al_destroy_bitmap(bug3);
+                        }
+                        else if (MAPA[i][j-1] == MAPA[bug4y/q][bug4x/q]){
+                            bug4morto = true;
+                            al_destroy_bitmap(bug4);
+                        }
+                }
+                j--;
+                posx = j*q;
             }
         break;
     }
+     pacman = al_load_bitmap(spritepac);
     return false;
+}
+
+void movimento(){
+    if(!bug1morto)
+        bug1 = al_load_bitmap(spriteb1);
+    if(!bug2morto)
+        bug2 = al_load_bitmap(spriteb2);
+    if(!bug2morto)
+        bug3 = al_load_bitmap(spriteb3);
+    if(!bug2morto)
+        bug4 = al_load_bitmap(spriteb4);
+}
+
+void poder(){
+    if (timepower > 0){
+        spritepac[9] == '1';
+        timepower--;
+    }
+    cout << "timpower:" << timepower << endl;
 }
 
 int main(int argc, char **argv)
 {
     if(!inicializa()) return -1;
+
+    al_attach_audio_stream_to_mixer(musica, al_get_default_mixer());
+    al_set_audio_stream_playing(musica, true);
+
 
     while(!sair)
     {
@@ -287,74 +650,32 @@ int main(int argc, char **argv)
 
         if(ev.type == ALLEGRO_EVENT_TIMER)
         {
-            if(key[KEY_UP] && MAPA[i-1][j] != '1')
-            {
-            	if(MAPA[i-1][j]=='2'){
-            		points++;
-            		cout << "Mais um ponto!!!" << endl;
-            		MAPA[i-1][j]='0';
-            	}
-                i--;
-                posy = i*q;
-                if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
-                    cout << "Game Over!!!" << endl;
-                    sair = true;
-                    break;
-            	}
-            }
+            if(key[KEY_UP])
+                dirpac = 0;
 
-            if(key[KEY_DOWN] && MAPA[i+1][j] != '1')
-            {
-            	if(MAPA[i+1][j]=='2'){
-            		points++;
-            		cout << "Mais um ponto!!!" << endl;
-            		MAPA[i+1][j]='0';
-            	}
+            if(key[KEY_DOWN])
+                dirpac = 2;
 
-                i++;
-                posy = i*q;
-                 if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
-                    cout << "Game Over!!!" << endl;
-                    sair = true;
-                    break;
-            	}
-            }
 
-            if(key[KEY_LEFT] && MAPA[i][j-1] != '1')
-            {
-            	if(MAPA[i][j-1]=='2'){
-            		points++;
-            		cout << "Mais um ponto!!!" << endl;
-            		MAPA[i][j-1]='0';
-            	}
-                j--;
-                posx = j*q;
-                 if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
-                    cout << "Game Over!!!" << endl;
-                    sair = true;
-                    break;
-            	}
-            }
+            if(key[KEY_LEFT])
+                dirpac = 3;
 
-            if(key[KEY_RIGHT] && MAPA[i][j+1] != '1')
-            {
-            	if(MAPA[i][j+1]=='2'){
-            		points++;
-            		cout << "Mais um ponto!!!" << endl;
-            		MAPA[i][j+1]='0';
-            	}
-                j++;
-                posx = j*q;
-                if( (posy == bug1y && posx == bug1x) || (posy == bug2y && posx == bug2x) || (posy == bug3y && posx == bug3x) || (posy == bug4y && posx == bug4x)){
-                    cout << "Game Over!!!" << endl;
-                    sair = true;
-                    break;
-            	}
-            }
-            sair=movimenta_bug(bug1y,bug1x,dirbug1);
-            sair=movimenta_bug(bug2y,bug2x,dirbug2);
-            sair=movimenta_bug(bug3y,bug3x,dirbug3);
-            sair=movimenta_bug(bug4y,bug4x,dirbug4);
+
+            if(key[KEY_RIGHT])
+                dirpac = 1;
+
+            sair=movimenta_pacman();
+            if( !sair)
+                sair=movimenta_bug(bug1y,bug1x,dirbug1,spriteb1,bug1morto);
+            if( !sair)
+                sair=movimenta_bug(bug2y,bug2x,dirbug2,spriteb2,bug2morto);
+            if( !sair)
+                sair=movimenta_bug(bug3y,bug3x,dirbug3,spriteb3,bug3morto);
+            if( !sair)
+                sair=movimenta_bug(bug4y,bug4x,dirbug4,spriteb4,bug4morto);
+
+            if( !sair)
+                movimento();
 
             redraw = true;
         }
@@ -371,7 +692,6 @@ int main(int argc, char **argv)
                 key[KEY_DOWN] = false;
                 key[KEY_LEFT] = false;
                 key[KEY_RIGHT] = false;
-                pacman = al_load_bitmap("pacmanU.tga");
                 break;
 
             case ALLEGRO_KEY_DOWN:
@@ -379,7 +699,6 @@ int main(int argc, char **argv)
                 key[KEY_DOWN] = true;
                 key[KEY_LEFT] = false;
                 key[KEY_RIGHT] = false;
-                pacman = al_load_bitmap("pacmanD.tga");
                 break;
 
             case ALLEGRO_KEY_LEFT:
@@ -387,7 +706,6 @@ int main(int argc, char **argv)
                 key[KEY_DOWN] = false;
                 key[KEY_LEFT] = true;
                 key[KEY_RIGHT] = false;
-                pacman = al_load_bitmap("pacmanL.tga");
                 break;
 
             case ALLEGRO_KEY_RIGHT:
@@ -395,33 +713,15 @@ int main(int argc, char **argv)
                 key[KEY_DOWN] = false;
                 key[KEY_LEFT] = false;
                 key[KEY_RIGHT] = true;
-                pacman = al_load_bitmap("pacmanR.tga");
                 break;
             }
         }
         else if(ev.type == ALLEGRO_EVENT_KEY_UP)
         {
-            switch(ev.keyboard.keycode)
-            {
-            /*case ALLEGRO_KEY_UP:
-                key[KEY_UP] = false;
-                break;
-
-            case ALLEGRO_KEY_DOWN:
-                key[KEY_DOWN] = false;
-                break;
-
-            case ALLEGRO_KEY_LEFT:
-                key[KEY_LEFT] = false;
-                break;
-
-            case ALLEGRO_KEY_RIGHT:
-                key[KEY_RIGHT] = false;
-                break; */
-
-            case ALLEGRO_KEY_ESCAPE:
-                sair = true;
-                break;
+            switch(ev.keyboard.keycode){
+	            case ALLEGRO_KEY_ESCAPE:
+	                sair = true;
+	                break;
             }
         }
 
@@ -433,24 +733,34 @@ int main(int argc, char **argv)
 
             al_draw_bitmap(mapa,0,0,0);
             al_draw_bitmap(pacman,posx,posy,0);
-            for(int l=1; l < 25; l++)
-                for(int k=1; k < 25; k++){
+            al_draw_textf(fonte, al_map_rgb(255, 255, 255), SCREEN_W / 2, 500, ALLEGRO_ALIGN_LEFT, "Pontuacao: %d", points);
+            for(int l=1; l < 24; l++)
+                for(int k=1; k < 24; k++){
                     if (MAPA[l][k] == '2'){
                         balaox = k * q;
                         balaoy = l * q;
                         al_draw_bitmap(balao, balaox, balaoy,0);
                     }
+                    else if (MAPA[l][k] == '3'){
+                        balaox = k * q;
+                        balaoy = l * q;
+                        al_draw_bitmap(power, balaox, balaoy,0);
+                    }
                 }
-            al_draw_bitmap(bug1,bug1x,bug1y,0);
-            al_draw_bitmap(bug1,bug2x,bug2y,0);
-            al_draw_bitmap(bug1,bug3x,bug3y,0);
-            al_draw_bitmap(bug1,bug4x,bug4y,0);
+            if(!bug1morto)
+                al_draw_bitmap(bug1,bug1x,bug1y,0);
+            if(!bug2morto)
+                al_draw_bitmap(bug2,bug2x,bug2y,0);
+            if(!bug3morto)
+                al_draw_bitmap(bug3,bug3x,bug3y,0);
+            if(!bug4morto)
+                al_draw_bitmap(bug4,bug4x,bug4y,0);
             al_flip_display();
         }
     }
 
-    cout << "Pontuacao: " << points << endl;
-
+    al_destroy_audio_stream(musica);
+    al_destroy_sample(sample);
     al_destroy_bitmap(bouncer);
     al_destroy_timer(timer);
     al_destroy_display(display);
