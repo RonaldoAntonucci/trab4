@@ -9,7 +9,7 @@
 
 using namespace std;
 
-const float FPS = 5;
+const float FPS = 10;
 const int SCREEN_W = 500;
 const int SCREEN_H = 550;
 int points=0;
@@ -18,6 +18,7 @@ enum MYKEYS
 {
     KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT
 };
+
 
 //matriz definindo mapa do jogo: 1 representa paredes, 0 representa corredor
 char MAPA[26][26] =
@@ -52,7 +53,7 @@ char MAPA[26][26] =
 char MAPA2[26][26] =
 {
     "1111111111111111111111111",
-    "1322222222222222222222261",
+    "1322222222222222222222251",
     "1211112111212121112111121",
     "1222212122212122212122221",
     "1211212121112111212121121",
@@ -74,9 +75,11 @@ char MAPA2[26][26] =
     "1222221112212122111222221",
     "1211122222222222222211121",
     "1211111111112111111111121",
-    "1422222222222222222222251",
+    "1422222222222222222222261",
     "1111111111111111111111111",
 };
+
+
 
 
 ALLEGRO_DISPLAY *display = NULL;
@@ -118,17 +121,26 @@ bool bug1morto=false;
 bool bug2morto=false;
 bool bug3morto=false;
 bool bug4morto=false;
+int respawbug1 = 300;
+int respawbug2 = 300;
+int respawbug3 = 300;
+int respawbug4 = 300;
 char spritepac[23] = {'s','p','r','i','t','e','s','/','l','e','v','i','_','1','_','1','_','0','.','t','g','a','\0'};
 char spriteb1[18] = {'s','p','r','i','t','e','s','/','b','u','g','1','1','.','t','g','a','\0'};
 char spriteb2[18] = {'s','p','r','i','t','e','s','/','b','u','g','1','0','.','t','g','a','\0'};
 char spriteb3[18] = {'s','p','r','i','t','e','s','/','b','u','g','1','3','.','t','g','a','\0'};
 char spriteb4[18] = {'s','p','r','i','t','e','s','/','b','u','g','1','2','.','t','g','a','\0'};
 int timepower = 0;
+bool movimentar = true;
+bool pacmovimento = true;
+int qantbalao = 299;
+
 
 
 bool key[4] = { false, false, false, false };
 bool redraw = true;
 bool sair = false;
+bool perdeu = false;
 
 int inicializa() {
     if(!al_init())
@@ -171,7 +183,7 @@ int inicializa() {
         return 0;
     }
 
-    timer = al_create_timer(1.5 / FPS);
+    timer = al_create_timer(1.0 / FPS);
     if(!timer)
     {
         cout << "Falha ao inicializar o temporizador" << endl;
@@ -203,7 +215,7 @@ int inicializa() {
 
     // Carregando o arquivo de fonte
 
-    fonte = al_load_font("fonts/DejaVuSans-Bold.ttf", 30, 0);
+    fonte = al_load_font("fonts/DejaVuSans-Bold.ttf", 25, 0);
 
     if (!fonte)
     {
@@ -221,7 +233,7 @@ int inicializa() {
     }
     al_draw_bitmap(pacman,posx,posy,0);
 
-    sample = al_load_sample("musicas/mc.wav");
+    sample = al_load_sample("musicas/sas.ogg");
     if (!sample)
     {
         cout<< "Falha ao carregar sample" << endl;;
@@ -284,7 +296,7 @@ int inicializa() {
 
     al_set_window_title(display, "PacLevi");
 
-    musica = al_load_audio_stream("musicas/sas.ogg", 4, 1024);
+    musica = al_load_audio_stream("musicas/sas.ogg", 3, 1024);
     if (!musica)
     {
         cout<<"Falha ao carregar audio."<<endl;
@@ -299,7 +311,7 @@ int inicializa() {
     al_register_event_source(event_queue, al_get_keyboard_event_source());
 
     al_clear_to_color(al_map_rgb(0,0,0));
-    al_draw_textf(fonte, al_map_rgb(255, 255, 255), SCREEN_W / 2, 500, ALLEGRO_ALIGN_LEFT, "Pontuacao: %d", points);
+    al_draw_textf(fonte, al_map_rgb(255, 255, 255), SCREEN_W / 20, 500, ALLEGRO_ALIGN_LEFT, "Pontuacao: %d", points);
     al_flip_display();
     al_start_timer(timer);
 
@@ -307,11 +319,11 @@ int inicializa() {
 }
 
 int gera_num(){
-      int aleatorio = ( rand() % 4 );
-      return aleatorio;
+    int aleatorio = ( rand() % 4 );
+    return aleatorio;
 }
 
-bool possivel (int const &bugi, int const &bugj, int const &dir){
+bool possivel (int const &bugi, int const &bugj, int const &dir ){
     switch(dir){
         case 0:
             if ( MAPA[bugi-1][bugj] == '1')
@@ -346,8 +358,15 @@ int possibilidades (int const &bugi, int const &bugj){
     return possibilidade;
 }
 
-bool movimenta_bug (int &bugy, int &bugx, int &dir, char sprite[], bool &bugmorto){
-    if(!bugmorto){
+void movimento(){
+        bug1 = al_load_bitmap(spriteb1);
+        bug2 = al_load_bitmap(spriteb2);
+        bug3 = al_load_bitmap(spriteb3);
+        bug4 = al_load_bitmap(spriteb4);
+}
+
+void movimenta_bug (int &bugy, int &bugx, int &dir, char sprite[], bool &bugmorto){
+    if(!bugmorto && !movimentar){
     if (sprite[11] == '1')
         sprite[11] = '2';
     else
@@ -356,13 +375,13 @@ bool movimenta_bug (int &bugy, int &bugx, int &dir, char sprite[], bool &bugmort
     int bugi = bugy/q;
     int bugj = bugx/q;
     int nbug;
-    if (MAPA[bugi][bugj] == '3')
+    if (MAPA2[bugi][bugj] == '3')
         nbug = 3;
-    else if (MAPA[bugi][bugj] == '4')
+    else if (MAPA2[bugi][bugj] == '4')
         nbug = 4;
-    else if (MAPA[bugi][bugj] == '5')
+    else if (MAPA2[bugi][bugj] == '5')
         nbug = 5;
-    else if (MAPA[bugi][bugj] == '6')
+    else if (MAPA2[bugi][bugj] == '6')
         nbug = 6;
     if (possibilidades(bugi,bugj) > 2 || !possivel(bugi,bugj,dir)){
         do{
@@ -390,88 +409,152 @@ bool movimenta_bug (int &bugy, int &bugx, int &dir, char sprite[], bool &bugmort
         case 0:
             if (MAPA2[bugi-1][bugj] == '0'){
                         if(timepower <= 0 ){
-                            cout << "Game Over0!!!" << endl;
-                                return true;
+                            perdeu = true;
+                            sair = true;
+                            return;
                         }
                         else if(!bugmorto){
                             points+=10;
-                            cout << "Mais 10 pontos!!!" << endl;
+                            qantbalao+=10;
                             bugmorto = true;
-                            return false;
+                            return;
                         }
             }
-            MAPA2[bugi][bugj] = 2;
+            MAPA2[bugi][bugj] = '2';
             bugi--;
+            if ('0' == MAPA2[bugi][bugj]){
+                if(timepower <= 0 ){
+                    perdeu = true;
+                    sair = true;
+                    return;
+                }
+                else if(!bugmorto){
+                    points+=10;
+                    qantbalao+=10;
+                    bugmorto = true;
+                    return;
+                }
+            }
             bugy = bugi*q;
             MAPA2[bugi][bugj] = nbug;
 
         break;
 
         case 1:
-            if ( '0' == MAPA[bugi][bugj+1]){
+            if ( '0' == MAPA2[bugi][bugj+1]){
                         if(timepower <= 0 ){
-                            cout << "Game Over1!!!" << endl;
-                                return true;
+                            perdeu = true;
+                            sair = true;
+                            movimento();
+                            return;
                         }
                         else if(!bugmorto){
                             points+=10;
-                            cout << "Mais 10 pontos!!!" << endl;
+                            qantbalao+=10;
                             bugmorto = true;
-                            return false;
+                            return;
                         }
             }
-            MAPA2[bugi][bugj] = 2;
+            MAPA2[bugi][bugj] = '2';
             bugj++;
+            if ('0' == MAPA2[bugi][bugj]){
+                if(timepower <= 0 ){
+                    perdeu = true;
+                    sair = true;
+                    movimento();
+                    return;
+                }
+                else if(!bugmorto){
+                    points+=10;
+                    qantbalao+=10;
+                    bugmorto = true;
+                    return;
+                }
+            }
             bugx = bugj*q;
             MAPA2[bugi][bugj] = nbug;
 
         break;
 
         case 2:
-            if ('0' == MAPA[bugi+1][bugj]){
+            if ('0' == MAPA2[bugi+1][bugj]){
                         if(timepower <= 0 ){
-                            cout << "Game Over2!!!" << endl;
-                                return true;
+                            perdeu = true;
+                            sair = true;
+                            movimento();
+                            return;
                         }
                         else if(!bugmorto){
                             points+=10;
-                            cout << "Mais 10 pontos!!!" << endl;
+                            qantbalao+=10;
                             bugmorto = true;
-                            return false;
+                            return;
                         }
             }
-            MAPA2[bugi][bugj] = 2;
+            MAPA2[bugi][bugj] = '2';
             bugi++;
+            if ('0' == MAPA2[bugi][bugj]){
+                if(timepower <= 0 ){
+                    perdeu = true;
+                    sair = true;
+                    return;
+                }
+                else if(!bugmorto){
+                    points+=10;
+                    qantbalao+=10;
+                    bugmorto = true;
+                    return;
+                }
+            }
             bugy = bugi*q;
             MAPA2[bugi][bugj] = nbug;
 
         break;
 
         case 3:
-            if ('0' == MAPA[bugi][bugj-1]){
+            if ('0' == MAPA2[bugi][bugj-1]){
                         if(timepower <= 0 ){
-                            cout << "Game Over3!!!" << endl;
-                                return true;
+                            perdeu = true;
+                            sair = true;
+                            movimento();
+                            return;
                         }
                         else if(!bugmorto){
                             points+=10;
-                            cout << "Mais 10 pontos!!!" << endl;
+                            qantbalao+=10;
                             bugmorto = true;
-                            return false;
+                            return;
                         }
             }
-            MAPA2[bugi][bugj] = 2;
+            MAPA2[bugi][bugj] = '2';
             bugj--;
+            if ('0' == MAPA2[bugi][bugj]){
+                if(timepower <= 0 ){
+                    perdeu = true;
+                    sair = true;
+                    movimento();
+                    return;
+                }
+                else if(!bugmorto){
+                    points+=10;
+                    qantbalao+=10;
+                    bugmorto = true;
+                    return;
+                }
+            }
             bugx = bugj*q;
             MAPA2[bugi][bugj] = nbug;
 
         break;
     }
-    return false;
+    movimento();
+    return;
     }
 }
 
-bool movimenta_pacman (){
+void movimenta_pacman (){
+    if(movimentar && pacmovimento){
+        pacmovimento = false;
     if (spritepac[13] == '1')
         spritepac[13] = '2';
     else
@@ -486,23 +569,22 @@ bool movimenta_pacman (){
             if(MAPA[i-1][j] != '1')
             {
                 spritepac[15] = '0';
-                if(MAPA[i-1][j]=='2'){
+                if(MAPA[i-1][j]== '2'){
                     points++;
-                    cout << "Mais um ponto!!!" << endl;
                     MAPA[i-1][j]='0';
                 }
-                else if(MAPA[i-1][j]=='3'){
-                    timepower=60;
+                else if(MAPA[i-1][j]== '3'){
+                    timepower=120;
                     spritepac[17] = '1';
                     points++;
-                    cout << "Mais um ponto!!!\nPoder ativado!!!" << endl;
                     MAPA[i-1][j]='0';
                 }
-                if( (MAPA2[i-1][j] == '3' && !bug1morto) || (MAPA2[i-1][j] == '4' && !bug1morto) ||
-                    (MAPA2[i-1][j] == '5' && !bug1morto) || (MAPA2[i-1][j] == '6' && !bug1morto)){
+                if( (MAPA2[i-1][j] == '3' && !bug1morto) || (MAPA2[i-1][j] == '4' && !bug2morto) ||
+                    (MAPA2[i-1][j] == '5' && !bug3morto) || (MAPA2[i-1][j] == '6' && !bug4morto)){
                         if(timepower <= 0 ){
-                            cout << "Game Over4!!!" << endl;
-                                return true;
+                            perdeu = true;
+                            sair = true;
+                            return;
                         }
                         else if (MAPA2[i-1][j] == '3')
                             bug1morto = true;
@@ -515,6 +597,14 @@ bool movimenta_pacman (){
                 }
                 MAPA2[i][j] = '2';
                 i--;
+                if (MAPA2[i][j] == '3')
+                    bug1morto = true;
+                else if (MAPA2[i][j] == '4')
+                    bug2morto = true;
+                else if (MAPA2[i][j] == '5')
+                    bug3morto = true;
+                else if (MAPA2[i][j] == '6')
+                    bug4morto = true;
                 posy = i*q;
                 MAPA2[i][j] = '0';
             }
@@ -526,21 +616,20 @@ bool movimenta_pacman (){
                 spritepac[15] = '1';
                 if(MAPA[i][j+1]=='2'){
                     points++;
-                    cout << "Mais um ponto!!!" << endl;
                     MAPA[i][j+1]='0';
                 }
                  else if(MAPA[i][j+1]=='3'){
-                    timepower=60;
+                    timepower=120;
                     spritepac[17] = '1';
                     points++;
-                    cout << "Mais um ponto!!!\nPoder ativado!!!" << endl;
                     MAPA[i][j+1]='0';
                 }
-                if( (MAPA2[i][j+1] == '3' && !bug1morto) || (MAPA2[i][j+1] == '4' && !bug1morto) ||
-                    (MAPA2[i][j+1] == '5' && !bug1morto) || (MAPA2[i][j+1] == '6' && !bug1morto)){
+                if( (MAPA2[i][j+1] == '3' && !bug1morto) || (MAPA2[i][j+1] == '4' && !bug2morto) ||
+                    (MAPA2[i][j+1] == '5' && !bug3morto) || (MAPA2[i][j+1] == '6' && !bug4morto)){
                         if(timepower <= 0 ){
-                            cout << "Game Over5!!!" << endl;
-                            return true;
+                            perdeu = true;
+                            sair = true;
+                            return;
                         }
                         else if (MAPA2[i][j+1] == '3')
                             bug1morto = true;
@@ -553,6 +642,14 @@ bool movimenta_pacman (){
                 }
                 MAPA2[i][j] = '2';
                 j++;
+                if (MAPA2[i][j] == '3')
+                    bug1morto = true;
+                else if (MAPA2[i][j] == '4')
+                    bug2morto = true;
+                else if (MAPA2[i][j] == '5')
+                    bug3morto = true;
+                else if (MAPA2[i][j] == '6')
+                    bug4morto = true;
                 posx = j*q;
                 MAPA2[i][j] = '0';
             }
@@ -564,21 +661,20 @@ bool movimenta_pacman (){
                 spritepac[15] = '2';
                 if(MAPA[i+1][j] =='2'){
                     points++;
-                    cout << "Mais um ponto!!!" << endl;
                     MAPA[i+1][j]='0';
                 }
                  else if(MAPA[i+1][j]=='3'){
-                    timepower=60;
+                    timepower=120;
                     spritepac[17] = '1';
                     points++;
-                    cout << "Mais um ponto!!!\nPoder ativado!!!" << endl;
                     MAPA[i+1][j]='0';
                 }
-                if( (MAPA2[i+1][j] == '3' && !bug1morto) || (MAPA2[i+1][j] == '4' && !bug1morto) ||
-                    (MAPA2[i+1][j] == '5' && !bug1morto) || (MAPA2[i+1][j] == '6' && !bug1morto)){
+                if( (MAPA2[i+1][j] == '3' && !bug1morto) || (MAPA2[i+1][j] == '4' && !bug2morto) ||
+                    (MAPA2[i+1][j] == '5' && !bug3morto) || (MAPA2[i+1][j] == '6' && !bug4morto)){
                         if(timepower <= 0 ){
-                            cout << "Game Over6!!!" << endl;
-                            return true;
+                            perdeu = true;
+                            sair = true;
+                            return;
                         }
                         else if (MAPA2[i+1][j] == '3')
                             bug1morto = true;
@@ -591,6 +687,14 @@ bool movimenta_pacman (){
                 }
                 MAPA2[i][j] = '2';
                 i++;
+                if (MAPA2[i][j] == '3')
+                    bug1morto = true;
+                else if (MAPA2[i][j] == '4')
+                    bug2morto = true;
+                else if (MAPA2[i][j] == '5')
+                    bug3morto = true;
+                else if (MAPA2[i][j] == '6')
+                    bug4morto = true;
                 posy = i*q;
                 MAPA2[i][j] = '0';
             }
@@ -602,21 +706,20 @@ bool movimenta_pacman (){
                 spritepac[15] = '3';
                 if(MAPA[i][j-1]=='2'){
                     points++;
-                    cout << "Mais um ponto!!!" << endl;
                     MAPA[i][j-1]='0';
                 }
                  else if(MAPA[i][j-1] =='3'){
-                    timepower=60;
+                    timepower=120;
                     spritepac[17] = '1';
                     points++;
-                    cout << "Mais um ponto!!!\nPoder ativado!!!" << endl;
                     MAPA[i][j-1]= '0';
                 }
-                if( (MAPA2[i][j-1] == '3' && !bug1morto) || (MAPA2[i][j-1] == '4' && !bug1morto) ||
-                    (MAPA2[i][j-1] == '5' && !bug1morto) || (MAPA2[i][j-1] == '6' && !bug1morto)){
+                if( (MAPA2[i][j-1] == '3' && !bug1morto) || (MAPA2[i][j-1] == '4' && !bug2morto) ||
+                    (MAPA2[i][j-1] == '5' && !bug3morto) || (MAPA2[i][j-1] == '6' && !bug4morto)){
                         if(timepower <= 0 ){
-                            cout << "Game Over7!!!" << endl;
-                            return true;
+                            perdeu = true;
+                            sair = true;
+                            return;
                         }
                         else if (MAPA2[i][j-1] == '3')
                             bug1morto = true;
@@ -629,34 +732,56 @@ bool movimenta_pacman (){
                 }
                 MAPA2[i][j] = '2';
                 j--;
+                if (MAPA2[i][j] == '3')
+                    bug1morto = true;
+                else if (MAPA2[i][j] == '4')
+                    bug2morto = true;
+                else if (MAPA2[i][j] == '5')
+                    bug3morto = true;
+                else if (MAPA2[i][j] == '6')
+                    bug4morto = true;
                 posx = j*q;
                 MAPA2[i][j] = '0';
             }
         break;
     }
-     pacman = al_load_bitmap(spritepac);
-     if (!pacman)
-        cout << "bugou saporra" << endl;
-    return false;
+    }
+    else if(movimentar)
+        pacmovimento = true;
+     //pacman = al_load_bitmap(spritepac);
+
 }
 
-void movimento(){
-    if(!bug1morto)
-        bug1 = al_load_bitmap(spriteb1);
-    if(!bug2morto)
-        bug2 = al_load_bitmap(spriteb2);
-    if(!bug2morto)
-        bug3 = al_load_bitmap(spriteb3);
-    if(!bug2morto)
-        bug4 = al_load_bitmap(spriteb4);
+void verifica(){
+    if( (MAPA2[i][j] == '3' && !bug1morto) || (MAPA2[i][j] == '4' && !bug2morto) ||
+        (MAPA2[i][j] == '5' && !bug3morto) || (MAPA2[i][j] == '6' && !bug4morto)){
+            if(timepower <= 0 ){
+                perdeu = true;
+                sair = true;
+                return;
+            }
+            else if (MAPA2[i][j] == '3' && !bug1morto)
+                bug1morto = true;
+            else if (MAPA2[i][j] == '4' && !bug2morto)
+                bug2morto = true;
+            else if (MAPA2[i][j] == '5' && !bug3morto)
+                bug3morto = true;
+            else if (MAPA2[i][j] == '6' && !bug4morto)
+                bug4morto = true;
+      }
 }
+
 
 void poder(){
     if (timepower > 0){
-        spritepac[18] == '1';
         timepower--;
+        spritepac[17] = '1';
+        pacman = al_load_bitmap(spritepac);
     }
-    cout << "timpower:" << timepower << endl;
+    if (timepower <= 0){
+        spritepac[17] = '0';
+        pacman = al_load_bitmap(spritepac);
+    }
 }
 
 int main(int argc, char **argv)
@@ -688,18 +813,76 @@ int main(int argc, char **argv)
             if(key[KEY_RIGHT])
                 dirpac = 1;
 
-            sair=movimenta_pacman();
+            movimenta_pacman();
+            verifica();
             if( !sair)
-                sair=movimenta_bug(bug1y,bug1x,dirbug1,spriteb1,bug1morto);
+                movimenta_bug(bug1y,bug1x,dirbug1,spriteb1,bug1morto);
+            verifica();
             if( !sair)
-                sair=movimenta_bug(bug2y,bug2x,dirbug2,spriteb2,bug2morto);
+                movimenta_bug(bug2y,bug2x,dirbug2,spriteb2,bug2morto);
+            verifica();
             if( !sair)
-                sair=movimenta_bug(bug3y,bug3x,dirbug3,spriteb3,bug3morto);
+                movimenta_bug(bug3y,bug3x,dirbug3,spriteb3,bug3morto);
+            verifica();
             if( !sair)
-                sair=movimenta_bug(bug4y,bug4x,dirbug4,spriteb4,bug4morto);
+                movimenta_bug(bug4y,bug4x,dirbug4,spriteb4,bug4morto);
+            verifica();
 
             if( !sair)
                 movimento();
+
+            if(bug1morto){
+                if (respawbug1 == 300){
+                    bug1y = 1*q;
+                    bug1x = 1*q;
+                }
+                respawbug1--;
+            }
+            else if (respawbug1 < 1){
+                bug1morto = false;
+                respawbug1 = 300;
+            }
+            if(bug2morto){
+                if (respawbug2 == 300){
+                    bug2y = 23*q;
+                    bug2x = 1*q;
+                }
+                respawbug2--;
+            }
+            if (respawbug2 < 1){
+                bug2morto = false;
+                respawbug2 = 300;
+            }
+            if(bug3morto){
+                if (respawbug3 == 300){
+                    bug3y = 1*q;
+                    bug3x = 23*q;
+                }
+                respawbug3--;
+            }
+            if (respawbug3 < 1){
+                bug3morto = false;
+                respawbug3 = 300;
+            }
+            if(bug4morto){
+                if (respawbug4 == 300){
+                    bug4y = 23*q;
+                    bug4x = 23*q;
+                }
+                respawbug4--;
+            }
+            if (respawbug4 < 1){
+                bug4morto = false;
+                respawbug4 = 300;
+            }
+
+            if (points>=qantbalao)
+                break;
+            if (movimentar)
+                movimentar = false;
+            else
+                movimentar = true;
+            poder();
 
             redraw = true;
         }
@@ -757,7 +940,7 @@ int main(int argc, char **argv)
 
             al_draw_bitmap(mapa,0,0,0);
             al_draw_bitmap(pacman,posx,posy,0);
-            al_draw_textf(fonte, al_map_rgb(255, 255, 255), SCREEN_W / 2, 500, ALLEGRO_ALIGN_LEFT, "Pontuacao: %d", points);
+            al_draw_textf(fonte, al_map_rgb(255, 255, 255), SCREEN_W / 20, 500, ALLEGRO_ALIGN_LEFT, "Pontuacao: %d", points);
             for(int l=1; l < 24; l++)
                 for(int k=1; k < 24; k++){
                     if (MAPA[l][k] == '2'){
@@ -783,6 +966,14 @@ int main(int argc, char **argv)
         }
     }
 
+    fonte = al_load_font("fonts/truetype/nanum/NanumBarunGothicBold.ttf", 45, 0);
+    if (perdeu)
+        al_draw_textf(fonte, al_map_rgb(255, 255, 255), SCREEN_W / 15, 250, ALLEGRO_ALIGN_LEFT, "No - Wrong Answer!");
+    else
+        al_draw_textf(fonte, al_map_rgb(255, 255, 255), SCREEN_W / 25, 250, ALLEGRO_ALIGN_LEFT, "You Win, Congratulations!!!");
+    al_flip_display();
+
+    al_rest(5);
 
     al_destroy_audio_stream(musica);
     al_destroy_sample(sample);
