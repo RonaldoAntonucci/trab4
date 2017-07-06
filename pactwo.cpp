@@ -204,7 +204,7 @@ int inicializa() {
         return 0;
     }
 
-    mapa = al_load_bitmap("map2.bmp");
+    mapa = al_load_bitmap("sprites/map2.bmp");
     if(!mapa)
     {
         cout << "Falha ao carregar o mapa!" << endl;
@@ -241,7 +241,7 @@ int inicializa() {
         return 0;
     }
 
-    balao = al_load_bitmap("balao.tga");
+    balao = al_load_bitmap("sprites/balao.tga");
     if(!balao)
     {
         cout << "Falha ao carregar os baloes!" << endl;
@@ -249,7 +249,7 @@ int inicializa() {
         return 0;
     }
 
-    power = al_load_bitmap("power.tga");
+    power = al_load_bitmap("sprites/power.tga");
         if(!power)
         {
             cout << "Falha ao carregar os poderes!" << endl;
